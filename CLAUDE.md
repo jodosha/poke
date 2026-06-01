@@ -11,8 +11,10 @@ Guidance for AI coding agents working on this repo.
 - `src/main.rs` — the entire CLI.
 - `Cargo.toml` — deps: `clap` (CLI), `notify-rust` (notifications). No other notification crates.
 - `Info.plist` — bundle metadata. `CFBundleIdentifier = com.lucaguidi.poke`.
-- `Makefile` — `make app` builds release, assembles `Poke.app`, ad-hoc codesigns it.
-- `Poke.app/` — build output, gitignored.
+- `icon.png` — source-of-truth app icon; converted to `AppIcon.icns` by `make`.
+- `Makefile` — `make app` generates the icon, builds release, assembles `Poke.app`, ad-hoc codesigns it.
+- `poke` — sh wrapper that forwards args to `Poke.app/Contents/MacOS/Poke`.
+- `Poke.app/`, `AppIcon.icns`, `AppIcon.iconset/` — build output, gitignored.
 
 ## Build & run
 
@@ -30,7 +32,13 @@ The codebase has two paths gated on `cfg(target_os = "macos")`:
 
 1. **macOS path:** always calls `notify_rust::set_application(...)` before showing — defaults to `com.lucaguidi.poke`, overridden when `--app` is passed (maps friendly names like `Firefox` → bundle ids in `bundle_id_for`). Skipping this call causes Launch Services to fall back to a `use_default` sentinel and pop a "Choose Application" picker before the notification appears. Do not remove the unconditional `set_application` call.
 
-2. **Freedesktop path:** uses `Hint::Urgency` for `--severity`, `appname()` for `--app`, and `.action()` + `wait_for_action` for `--target`. None of those APIs exist on `notify-rust`'s macOS backend — they're cfg-gated out. If you need click-to-open on macOS, that's `notify-rust`'s limitation; the macOS arm of `notify-rust`'s own `examples/actions.rs` literally prints "this is a xdg only feature".
+2. **Freedesktop path:** uses `Hint::Urgency` for `--severity` and `.action()` + `wait_for_action` for `--target`. Neither API exists on `notify-rust`'s macOS backend — they're cfg-gated out. If you need click-to-open on macOS, that's `notify-rust`'s limitation; the macOS arm of `notify-rust`'s own `examples/actions.rs` literally prints "this is a xdg only feature".
+
+### Scheduling (`--in`)
+
+`--in` uses `notify_rust::Notification::schedule_raw(timestamp)`, which **blocks** until the OS fires the banner (mac-notification-sys default). To keep the user's shell free, `main()` detects `--in` and re-spawns the current binary with `POKE_DETACHED=1` in the environment, then exits. The detached child sees the marker, skips the re-spawn branch, and falls through to the blocking `schedule_raw` call. Do not remove the marker check — without it, the child re-spawns infinitely.
+
+Duration parsing is in `parse_duration` and supports compound forms (`1h30m`, `90s`, `2d`). Bare integers (no unit) are rejected on purpose to avoid ambiguity.
 
 ## Conventions
 
@@ -45,9 +53,10 @@ There are no unit tests — this is a thin CLI over `notify-rust`. To verify a c
 
 ```sh
 make app
-./Poke.app/Contents/MacOS/Poke --title "test" --message "1" --severity high
-./Poke.app/Contents/MacOS/Poke --title "test" --message "2" --timeout 0
-./Poke.app/Contents/MacOS/Poke --title "test" --message "3" --target https://example.com  # should print the xdg warning
+./poke --title "test" --message "1" --severity high
+./poke --title "test" --message "2" --timeout 0
+./poke --title "test" --message "3" --target https://example.com   # should print the xdg warning
+./poke --title "test" --message "4" --in 10s                       # parent should return instantly; banner fires ~10s later
 ```
 
 A "Choose Application" picker appearing means `set_application` isn't being called with a valid bundle id — that's a regression.

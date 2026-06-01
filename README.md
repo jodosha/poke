@@ -47,6 +47,17 @@ open Poke.app --args --title hi --message there
 | `--timeout`  | Seconds before the banner dismisses. `0` = sticky. Default `5`.          |
 | `--severity` | `low`, `normal`, or `high`. Default `normal`.                            |
 | `--target`   | Path or URL opened on click. **Freedesktop-only**; ignored on macOS.     |
+| `--in`       | Schedule delivery for later. Compound: `30m`, `1h`, `90s`, `1h30m`, `2d`. macOS only. |
+
+### Scheduling
+
+`--in` schedules the notification for later and returns immediately:
+
+```sh
+poke --title "Wind down" --message "Code freeze in 30 minutes" --severity low --in 30m
+```
+
+`notify-rust`'s scheduled-delivery API blocks the calling process until the OS fires the banner, so `poke` re-spawns itself as a detached background process when `--in` is set. The parent exits within milliseconds; the child sleeps until the delivery time and then exits silently. No new shell or `&` needed.
 
 ### macOS notes
 
