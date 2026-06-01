@@ -1,0 +1,13 @@
+#!/bin/sh
+# Wrapper that forwards all args to the binary inside Poke.app.
+set -e
+
+here=$(cd -- "$(dirname -- "$0")" && pwd)
+bin="$here/Poke.app/Contents/MacOS/Poke"
+
+if [ ! -x "$bin" ]; then
+  echo "poke: $bin not found. Run 'make app' first." >&2
+  exit 1
+fi
+
+exec "$bin" "$@"

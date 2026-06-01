@@ -1,0 +1,9 @@
+[package]
+name = "poke"
+version = "0.1.0"
+edition = "2021"
+description = "Tiny CLI to deliver macOS notifications via notify-rust"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+notify-rust = "4"
