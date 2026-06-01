@@ -13,7 +13,7 @@ Guidance for AI coding agents working on this repo.
 - `Info.plist` — bundle metadata. `CFBundleIdentifier = com.lucaguidi.poke`.
 - `icon.png` — source-of-truth app icon; converted to `AppIcon.icns` by `make`.
 - `Makefile` — `make app` generates the icon, builds release, assembles `Poke.app`, ad-hoc codesigns it.
-- `poke` — sh wrapper that forwards args to `Poke.app/Contents/MacOS/Poke`.
+- `poke` — sh wrapper. Source-of-truth lives at the repo root; `make app` copies it into `Poke.app/Contents/Resources/bin/poke` so it ships inside the bundle. `make install` symlinks `$(BINDIR)/poke` to that path so the CLI is available on `PATH` without the source repo present.
 - `Poke.app/`, `AppIcon.icns`, `AppIcon.iconset/` — build output, gitignored.
 
 ## Build & run

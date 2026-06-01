@@ -5,7 +5,10 @@ BUNDLE_ID := com.lucaguidi.poke
 ICON_SRC  := icon.png
 ICON      := AppIcon.icns
 
-.PHONY: all build app icon clean
+PREFIX ?= /Applications
+BINDIR ?= /usr/local/bin
+
+.PHONY: all build app icon install uninstall clean
 
 all: app
 
@@ -32,10 +35,11 @@ icon: $(ICON)
 
 app: build $(ICON)
 	rm -rf $(APP)
-	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
+	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources $(APP)/Contents/Resources/bin
 	cp $(BIN) $(APP)/Contents/MacOS/$(APP_NAME)
 	cp Info.plist $(APP)/Contents/Info.plist
 	cp $(ICON) $(APP)/Contents/Resources/$(ICON)
+	install -m 755 poke $(APP)/Contents/Resources/bin/poke
 	codesign --force --sign - --identifier $(BUNDLE_ID) $(APP)
 	@echo
 	@echo "Built $(APP). Run it once via:"
@@ -43,6 +47,20 @@ app: build $(ICON)
 	@echo "then approve the notification prompt. After that, consent persists."
 	@echo "For ongoing CLI use:"
 	@echo "    ./poke --title Hi --message there"
+
+install: app
+	rm -rf "$(PREFIX)/$(APP)"
+	cp -R $(APP) "$(PREFIX)/$(APP)"
+	mkdir -p "$(BINDIR)"
+	ln -sf "$(PREFIX)/$(APP)/Contents/Resources/bin/poke" "$(BINDIR)/poke"
+	@echo "Installed:"
+	@echo "  $(PREFIX)/$(APP)"
+	@echo "  $(BINDIR)/poke -> $(PREFIX)/$(APP)/Contents/Resources/bin/poke"
+
+uninstall:
+	rm -rf "$(PREFIX)/$(APP)"
+	rm -f "$(BINDIR)/poke"
+	@echo "Removed $(PREFIX)/$(APP) and $(BINDIR)/poke"
 
 clean:
 	cargo clean

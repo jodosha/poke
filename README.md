@@ -10,30 +10,42 @@ make app
 
 Produces `Poke.app` — an ad-hoc codesigned bundle with id `com.lucaguidi.poke`. The bundle is required so macOS can persist notification permission across runs; without it the system treats every invocation as a new requester and re-prompts.
 
-The first run will trigger a permission prompt. Approve it once, and consent sticks.
+The first run triggers a permission prompt. Approve it once, and consent sticks.
 
-## Usage
-
-The repo ships a `poke` shell wrapper next to `Poke.app` — use that for everyday invocation:
+## Install
 
 ```sh
-./poke \
-  --title "Build done" \
-  --message "All green ✓" \
-  --timeout 5 \
-  --severity high
+make install                       # PREFIX=/Applications, BINDIR=/usr/local/bin
+PREFIX=~/Applications make install # user-level install
+sudo make install                  # if BINDIR isn't writable
 ```
 
-Symlink it onto your `PATH` to call `poke` from anywhere:
+`make install` copies `Poke.app` to `$(PREFIX)` and symlinks `$(BINDIR)/poke` to the wrapper script that ships **inside** the bundle at `Contents/Resources/bin/poke`. That means:
+
+- The wrapper travels with the app — copy `Poke.app` to any other Mac and a single `ln -s` brings the CLI back.
+- Uninstalling the app (`make uninstall`, or just `rm -rf` the bundle) leaves a dangling `poke` symlink that's easy to remove.
+
+After install, `poke` is on your `PATH`:
 
 ```sh
-ln -s "$PWD/poke" ~/.local/bin/poke
-poke --title hi --message there
+poke --title "Build done" --message "All green ✓" --severity high
 ```
 
-You can also invoke the bundled binary directly, or via `open`:
+### Distributing without this repo
+
+If you copy `Poke.app` to a machine that doesn't have the source:
 
 ```sh
+cp -R Poke.app /Applications/
+ln -s /Applications/Poke.app/Contents/Resources/bin/poke /usr/local/bin/poke
+```
+
+That's it — no Rust toolchain needed on the target machine.
+
+## Run without installing
+
+```sh
+./poke --title hi --message there
 ./Poke.app/Contents/MacOS/Poke --title hi --message there
 open Poke.app --args --title hi --message there
 ```

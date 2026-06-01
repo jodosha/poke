@@ -1,12 +1,45 @@
 #!/bin/sh
-# Wrapper that forwards all args to the binary inside Poke.app.
+# poke — fire macOS notifications via Poke.app, wherever it's installed.
+#
+# Resolution order:
+#   1. $POKE_BIN env var (absolute path to the bundled binary).
+#   2. /Applications/Poke.app, ~/Applications/Poke.app
+#   3. Spotlight lookup by bundle id (com.lucaguidi.poke).
+#   4. Poke.app next to this script (dev checkout).
 set -e
 
-here=$(cd -- "$(dirname -- "$0")" && pwd)
-bin="$here/Poke.app/Contents/MacOS/Poke"
+resolve_bin() {
+  if [ -n "$POKE_BIN" ] && [ -x "$POKE_BIN" ]; then
+    printf '%s\n' "$POKE_BIN"
+    return 0
+  fi
 
-if [ ! -x "$bin" ]; then
-  echo "poke: $bin not found. Run 'make app' first." >&2
+  for app in /Applications/Poke.app "$HOME/Applications/Poke.app"; do
+    if [ -x "$app/Contents/MacOS/Poke" ]; then
+      printf '%s\n' "$app/Contents/MacOS/Poke"
+      return 0
+    fi
+  done
+
+  if command -v mdfind >/dev/null 2>&1; then
+    found=$(mdfind "kMDItemCFBundleIdentifier == 'com.lucaguidi.poke'" 2>/dev/null | head -n 1)
+    if [ -n "$found" ] && [ -x "$found/Contents/MacOS/Poke" ]; then
+      printf '%s\n' "$found/Contents/MacOS/Poke"
+      return 0
+    fi
+  fi
+
+  here=$(cd -- "$(dirname -- "$0")" && pwd)
+  if [ -x "$here/Poke.app/Contents/MacOS/Poke" ]; then
+    printf '%s\n' "$here/Poke.app/Contents/MacOS/Poke"
+    return 0
+  fi
+
+  return 1
+}
+
+if ! bin=$(resolve_bin); then
+  echo "poke: Poke.app not found. Install it with 'make install' or set POKE_BIN." >&2
   exit 1
 fi
 
